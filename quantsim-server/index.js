@@ -10,6 +10,9 @@ const PORT = 5000; //we"ll change the port later on
 app.use(cors());
 app.use(express.json());
 
+// auth route (login and register endpoints)
+app.use('/api/auth', require('./routes/authRoutes'));
+
 // api routes basis
 const testRoutes = require('./routes/testRoutes');
 app.use('/api', testRoutes);
