@@ -13,6 +13,9 @@ app.use(express.json());
 // auth route (login and register endpoints)
 app.use('/api/auth', require('./routes/authRoutes'));
 
+// stocks route
+app.use('/api/stocks', require('./routes/stockRoutes'));
+
 // api routes basis
 const testRoutes = require('./routes/testRoutes');
 app.use('/api', testRoutes);
