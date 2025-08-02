@@ -1,0 +1,1 @@
+Placeholder note because git ignore doesn't recognize empty folders
