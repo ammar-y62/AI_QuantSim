@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 // Backend API configuration
+// VITE_BACKEND_URL is optional - defaults to localhost if not set
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api'
 
 // Create axios instance with default config
