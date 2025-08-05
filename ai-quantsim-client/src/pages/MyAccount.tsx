@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { User, Settings, Shield, CreditCard } from 'lucide-react'
+import { User, Settings, Shield, CreditCard, LogOut } from 'lucide-react'
+import { authService } from '@/services/authService'
 
 interface UserProfile {
   name: string
@@ -14,6 +16,7 @@ interface UserProfile {
 }
 
 function MyAccount() {
+  const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile>({
     name: 'John Doe',
     email: 'john.doe@example.com',
@@ -24,6 +27,7 @@ function MyAccount() {
 
   const [isEditing, setIsEditing] = useState(false)
   const [tempProfile, setTempProfile] = useState<UserProfile>(profile)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleSave = () => {
     setProfile(tempProfile)
@@ -33,6 +37,34 @@ function MyAccount() {
   const handleCancel = () => {
     setTempProfile(profile)
     setIsEditing(false)
+  }
+
+  const handleLogout = async () => {
+    try {
+      console.log('Logging out...');
+      setIsLoggingOut(true);
+
+      // Logout from Firebase
+      console.log('Calling authService.logout()...');
+      await authService.logout();
+      console.log('Firebase logout completed');
+
+      // Clear any stored data (if using localStorage or sessionStorage)
+      console.log('Clearing local storage...');
+      localStorage.removeItem('auth-storage')
+      sessionStorage.clear()
+      console.log('Local storage cleared');
+
+      // Navigate back to login page
+      console.log('Navigating to login page...');
+      navigate('/login')
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Even if Firebase logout fails, still redirect to login
+      navigate('/login')
+    } finally {
+      setIsLoggingOut(false);
+    }
   }
 
   return (
@@ -175,6 +207,42 @@ function MyAccount() {
               <Button variant="outline" className="w-full">
                 View Login History
               </Button>
+
+              {/* Logout Button */}
+              <div className="pt-2 border-t border-slate-200">
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  {isLoggingOut ? (
+                    <svg
+                      className="animate-spin h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  ) : (
+                    <LogOut className="h-4 w-4 mr-2" />
+                  )}
+                  {isLoggingOut ? 'Logging Out...' : 'Logout'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
