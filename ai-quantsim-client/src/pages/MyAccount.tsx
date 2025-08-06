@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { User, Settings, Shield, CreditCard, LogOut } from 'lucide-react'
 import { authService } from '@/services/authService'
+import { useAuthStore } from '@/stores/authStore'
 
 interface UserProfile {
   name: string
@@ -17,17 +18,45 @@ interface UserProfile {
 
 function MyAccount() {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+
   const [profile, setProfile] = useState<UserProfile>({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
+    name: 'Loading...',
+    email: 'Loading...',
     phone: '+1 (555) 123-4567',
     subscription: 'Premium',
-    joinDate: '2024-01-15'
+    joinDate: 'Loading...'
   })
 
   const [isEditing, setIsEditing] = useState(false)
   const [tempProfile, setTempProfile] = useState<UserProfile>(profile)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  // Fetch user data from Firebase Auth
+  useEffect(() => {
+    if (user) {
+      const email = user.email || 'No email available'
+      const displayName = user.displayName || 'User'
+      const creationTime = user.metadata?.creationTime
+        ? new Date(user.metadata.creationTime).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        : 'Unknown'
+
+      const userProfile: UserProfile = {
+        name: displayName,
+        email: email,
+        phone: '+1 (555) 123-4567', // Still mock data - will come from database later
+        subscription: 'Premium', // Still mock data - will come from database later
+        joinDate: creationTime
+      }
+
+      setProfile(userProfile)
+      setTempProfile(userProfile)
+    }
+  }, [user])
 
   const handleSave = () => {
     setProfile(tempProfile)
