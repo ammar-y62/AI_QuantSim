@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { listAssets } = require('../controllers/stockController');
-const { getStockHistory } = require('../controllers/stocksController');
+const { listAssets, getStockHistory } = require('../controllers/stockController');
 
 router.get('/list', listAssets);
 router.get('/:ticker/history', getStockHistory);
