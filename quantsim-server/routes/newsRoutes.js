@@ -1,7 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { searchNews } = require('../controllers/newsController');
+const { 
+  getStockNews, 
+  searchNews
+} = require('../controllers/newsController');
 
-router.post('/news', searchNews);
+// Get stock-specific news (public - no auth required)
+router.get('/stock/:ticker', getStockNews);
+
+// Search news across all categories (public - no auth required)
+router.post('/search', searchNews);
 
 module.exports = router;

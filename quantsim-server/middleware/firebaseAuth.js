@@ -52,32 +52,46 @@ const verifyFirebaseToken = async (req, res, next) => {
   }
 };
 
-// Middleware to get or create user in database
+// Middleware to ensure user exists in Firestore
 const ensureUserExists = async (req, res, next) => {
   try {
-    const { query } = require('../config/database');
+    const { db } = require('../services/firebaseService');
 
-    // Check if user exists in database
-    const userResult = await query(
-      'SELECT * FROM users WHERE firebase_uid = $1',
-      [req.user.uid]
-    );
+    // Check if user exists in Firestore
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
 
-    if (userResult.rows.length === 0) {
-      // Create new user
-      const newUserResult = await query(
-        'INSERT INTO users (firebase_uid, email) VALUES ($1, $2) RETURNING *',
-        [req.user.uid, req.user.email]
-      );
+    if (!userDoc.exists) {
+      // Create new user profile in Firestore
+      const userProfile = {
+        uid: req.user.uid,
+        email: req.user.email,
+        displayName: req.user.displayName || '',
+        firstName: '',
+        lastName: '',
+        createdAt: new Date(),
+        lastLogin: new Date(),
+        isActive: true,
+        preferences: {
+          theme: 'light',
+          notifications: true,
+          timezone: 'UTC'
+        },
+        trading: {
+          defaultCurrency: 'USD',
+          riskTolerance: 'moderate',
+          tradingHours: '9:30-16:00'
+        }
+      };
 
-      req.dbUser = newUserResult.rows[0];
+      await db.collection('users').doc(req.user.uid).set(userProfile);
+      req.dbUser = userProfile;
     } else {
-      req.dbUser = userResult.rows[0];
+      req.dbUser = userDoc.data();
     }
 
     next();
   } catch (error) {
-    console.error('Database user creation error:', error);
+    console.error('Firestore user creation error:', error);
     return res.status(500).json({ error: 'Database error' });
   }
 };
