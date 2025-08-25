@@ -1,5 +1,39 @@
 # Weekly Backend Development Progress
 
+## Architecture Update: PostgreSQL + Firebase Auth
+
+**New Architecture:**
+- **Firebase**: Authentication only (login/register)
+- **PostgreSQL**: All data storage (users, portfolios, preferences, etc.)
+- **Frontend**: Handles Firebase auth directly, sends JWT tokens to backend
+
+## Database Setup
+
+### Prerequisites
+1. **PostgreSQL installed** on your system
+2. **Node.js** (version 16 or higher)
+3. **Firebase Admin SDK** credentials
+
+### Quick Setup
+```bash
+cd quantsim-server
+npm install
+cp env.example .env
+# Edit .env with your database and Firebase credentials
+npm run db:setup
+npm run dev
+```
+
+### Database Schema
+The database includes:
+- **users** - User accounts linked to Firebase Auth
+- **portfolios** - User portfolio configurations
+- **portfolio_holdings** - Individual stock holdings within portfolios
+- **user_preferences** - User settings and preferences
+- **watchlists** - User stock watchlists
+- **saved_forecasts** - User's saved AI predictions
+- **user_activity** - User activity logging
+
 ## API Endpoints Documentation for Frontend
 
 ### Authentication Endpoints
@@ -23,7 +57,7 @@
 
 **Response:**
 - message: string
-- user: { uid, email, displayName, firstName, lastName }
+- user: { uid, email, displayName, id }
 - customToken: string
 - lastLogin: date
 
@@ -32,7 +66,7 @@
 - Authorization: Bearer {firebase_jwt_token}
 
 **Response:**
-- user: { email, displayName, firstName, lastName, preferences, trading, createdAt, lastLogin }
+- user: { id, email, displayName, subscriptionTier, subscriptionStatus, createdAt, updatedAt, preferences }
 
 #### PUT /api/auth/profile/:uid
 **Headers:**
@@ -40,10 +74,7 @@
 
 **Request Body:**
 - displayName (optional): string
-- firstName (optional): string
-- lastName (optional): string
 - preferences (optional): object
-- trading (optional): object
 
 **Response:**
 - message: string
@@ -81,7 +112,7 @@
 - ticker: string
 
 **Query Parameters:**
-- period (optional): string (1m, 3m, 6m, 1y) - defaults to 1m
+- period (optional): string (1m, 3m, 6m, 1y) - defaults to 1y
 
 **Response:**
 - results: array of price data with open, high, low, close, volume, timestamp
@@ -96,6 +127,7 @@
 - ticker (required): string
 - shares (required): number
 - avgPrice (required): number
+- portfolioName (optional): string - defaults to 'My Portfolio'
 
 **Response:**
 - message: string
@@ -122,6 +154,7 @@
 - ticker (required): string
 - shares (required): number
 - avgPrice (required): number
+- portfolioName (optional): string
 
 **Response:**
 - message: string
@@ -169,8 +202,9 @@
 
 **Response:**
 - portfolio: array of stocks with live prices and P&L calculations
-
-### Forecast Endpoints
+- totalValue: number
+- totalPnL: number
+- totalPnLPercentage: number
 
 ### News Endpoints
 

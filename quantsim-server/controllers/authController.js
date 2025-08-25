@@ -1,7 +1,7 @@
 const { admin } = require('../middleware/firebaseAuth');
-const { db } = require('../services/firebaseService');
+const { query } = require('../config/database');
 
-// User registration - creates user profile in Firestore
+// User registration - creates user in Firebase Auth and PostgreSQL
 exports.registerUser = async (req, res) => {
   try {
     const { email, password, displayName, firstName, lastName } = req.body;
@@ -21,29 +21,11 @@ exports.registerUser = async (req, res) => {
       emailVerified: false
     });
 
-    // Create user profile in Firestore
-    const userProfile = {
-      uid: userRecord.uid,
-      email: userRecord.email,
-      displayName: userRecord.displayName || displayName,
-      firstName: firstName || '',
-      lastName: lastName || '',
-      createdAt: new Date(),
-      lastLogin: new Date(),
-      isActive: true,
-      preferences: {
-        theme: 'light',
-        notifications: true,
-        timezone: 'UTC'
-      },
-      trading: {
-        defaultCurrency: 'USD',
-        riskTolerance: 'moderate',
-        tradingHours: '9:30-16:00'
-      }
-    };
-
-    await db.collection('users').doc(userRecord.uid).set(userProfile);
+    // Create user profile in PostgreSQL
+    const userProfile = await query(
+      'INSERT INTO users (firebase_uid, email, display_name) VALUES ($1, $2, $3) RETURNING *',
+      [userRecord.uid, userRecord.email, userRecord.displayName || displayName]
+    );
 
     // Create custom token for immediate login
     const customToken = await admin.auth().createCustomToken(userRecord.uid);
@@ -99,21 +81,25 @@ exports.loginUser = async (req, res) => {
     // Verify the Firebase ID token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     
-    // Get user profile from Firestore
-    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    // Get user profile from PostgreSQL
+    const userResult = await query(
+      'SELECT * FROM users WHERE firebase_uid = $1',
+      [decodedToken.uid]
+    );
     
-    if (!userDoc.exists) {
+    if (userResult.rows.length === 0) {
       return res.status(404).json({ 
         error: 'User profile not found' 
       });
     }
 
-    const userProfile = userDoc.data();
+    const userProfile = userResult.rows[0];
 
     // Update last login time
-    await db.collection('users').doc(decodedToken.uid).update({
-      lastLogin: new Date()
-    });
+    await query(
+      'UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [userProfile.id]
+    );
 
     // Create custom token for session
     const customToken = await admin.auth().createCustomToken(decodedToken.uid);
@@ -121,11 +107,10 @@ exports.loginUser = async (req, res) => {
     res.status(200).json({
       message: 'Login successful',
       user: {
-        uid: userProfile.uid,
+        uid: userProfile.firebase_uid,
         email: userProfile.email,
-        displayName: userProfile.displayName,
-        firstName: userProfile.firstName,
-        lastName: userProfile.lastName
+        displayName: userProfile.display_name,
+        id: userProfile.id
       },
       customToken,
       lastLogin: new Date()
@@ -152,7 +137,7 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-// Get user profile
+// Get user profile from PostgreSQL
 exports.getUserProfile = async (req, res) => {
   try {
     const { uid } = req.params;
@@ -164,21 +149,36 @@ exports.getUserProfile = async (req, res) => {
       });
     }
 
-    const userDoc = await db.collection('users').doc(uid).get();
+    const userResult = await query(
+      'SELECT * FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
     
-    if (!userDoc.exists) {
+    if (userResult.rows.length === 0) {
       return res.status(404).json({ 
         error: 'User profile not found' 
       });
     }
 
-    const userProfile = userDoc.data();
+    const userProfile = userResult.rows[0];
     
-    // Remove sensitive information
-    delete userProfile.uid;
+    // Get user preferences
+    const preferencesResult = await query(
+      'SELECT * FROM user_preferences WHERE user_id = $1',
+      [userProfile.id]
+    );
 
     res.status(200).json({
-      user: userProfile
+      user: {
+        id: userProfile.id,
+        email: userProfile.email,
+        displayName: userProfile.display_name,
+        subscriptionTier: userProfile.subscription_tier,
+        subscriptionStatus: userProfile.subscription_status,
+        createdAt: userProfile.created_at,
+        updatedAt: userProfile.updated_at,
+        preferences: preferencesResult.rows[0] || {}
+      }
     });
 
   } catch (error) {
@@ -189,11 +189,11 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
-// Update user profile
+// Update user profile in PostgreSQL
 exports.updateUserProfile = async (req, res) => {
   try {
     const { uid } = req.params;
-    const { displayName, firstName, lastName, preferences } = req.body;
+    const { displayName, preferences } = req.body;
     
     // Verify the requesting user has access to this profile
     if (req.user.uid !== uid) {
@@ -202,16 +202,36 @@ exports.updateUserProfile = async (req, res) => {
       });
     }
 
+    // Get user ID from firebase_uid
+    const userResult = await query(
+      'SELECT id FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'User not found' 
+      });
+    }
+
+    const userId = userResult.rows[0].id;
     const updateData = {};
     
-    if (displayName !== undefined) updateData.displayName = displayName;
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
-    if (preferences !== undefined) updateData.preferences = preferences;
-    
-    updateData.updatedAt = new Date();
+    if (displayName !== undefined) {
+      await query(
+        'UPDATE users SET display_name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [displayName, userId]
+      );
+      updateData.displayName = displayName;
+    }
 
-    await db.collection('users').doc(uid).update(updateData);
+    if (preferences !== undefined) {
+      await query(
+        'UPDATE user_preferences SET theme = $1, default_chart_period = $2, notifications_enabled = $3, email_notifications = $4, updated_at = CURRENT_TIMESTAMP WHERE user_id = $5',
+        [preferences.theme, preferences.defaultChartPeriod, preferences.notificationsEnabled, preferences.emailNotifications, userId]
+      );
+      updateData.preferences = preferences;
+    }
 
     res.status(200).json({
       message: 'Profile updated successfully',
@@ -226,7 +246,7 @@ exports.updateUserProfile = async (req, res) => {
   }
 };
 
-// Delete user account
+// Delete user account from both Firebase and PostgreSQL
 exports.deleteUser = async (req, res) => {
   try {
     const { uid } = req.params;
@@ -238,8 +258,22 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
-    // Delete user profile from Firestore
-    await db.collection('users').doc(uid).delete();
+    // Get user ID from firebase_uid
+    const userResult = await query(
+      'SELECT id FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'User not found' 
+      });
+    }
+
+    const userId = userResult.rows[0].id;
+
+    // Delete user from PostgreSQL (cascade will handle related tables)
+    await query('DELETE FROM users WHERE id = $1', [userId]);
     
     // Delete user from Firebase Auth
     await admin.auth().deleteUser(uid);

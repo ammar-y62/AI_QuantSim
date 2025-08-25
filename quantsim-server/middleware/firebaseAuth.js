@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const { query } = require('../config/database');
 
 // Initialize Firebase Admin if not already initialized and env vars are available
 if (!admin.apps.length && process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY) {
@@ -52,46 +53,30 @@ const verifyFirebaseToken = async (req, res, next) => {
   }
 };
 
-// Middleware to ensure user exists in Firestore
+// Middleware to ensure user exists in PostgreSQL database
 const ensureUserExists = async (req, res, next) => {
   try {
-    const { db } = require('../services/firebaseService');
+    // Check if user exists in PostgreSQL database
+    const userResult = await query(
+      'SELECT * FROM users WHERE firebase_uid = $1',
+      [req.user.uid]
+    );
 
-    // Check if user exists in Firestore
-    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    if (userResult.rows.length === 0) {
+      // Create new user in PostgreSQL
+      const newUserResult = await query(
+        'INSERT INTO users (firebase_uid, email, display_name) VALUES ($1, $2, $3) RETURNING *',
+        [req.user.uid, req.user.email, req.user.email.split('@')[0]] // Use email prefix as default display name
+      );
 
-    if (!userDoc.exists) {
-      // Create new user profile in Firestore
-      const userProfile = {
-        uid: req.user.uid,
-        email: req.user.email,
-        displayName: req.user.displayName || '',
-        firstName: '',
-        lastName: '',
-        createdAt: new Date(),
-        lastLogin: new Date(),
-        isActive: true,
-        preferences: {
-          theme: 'light',
-          notifications: true,
-          timezone: 'UTC'
-        },
-        trading: {
-          defaultCurrency: 'USD',
-          riskTolerance: 'moderate',
-          tradingHours: '9:30-16:00'
-        }
-      };
-
-      await db.collection('users').doc(req.user.uid).set(userProfile);
-      req.dbUser = userProfile;
+      req.dbUser = newUserResult.rows[0];
     } else {
-      req.dbUser = userDoc.data();
+      req.dbUser = userResult.rows[0];
     }
 
     next();
   } catch (error) {
-    console.error('Firestore user creation error:', error);
+    console.error('PostgreSQL user creation error:', error);
     return res.status(500).json({ error: 'Database error' });
   }
 };

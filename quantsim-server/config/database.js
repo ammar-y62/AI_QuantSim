@@ -5,7 +5,7 @@ const dbConfig = {
   user: process.env.DB_USER || 'postgres',
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'quantsim',
-  password: process.env.DB_PASSWORD || 'password',
+  password: process.env.DB_PASSWORD || undefined, // Removed password for manual input for Windows Auth
   port: process.env.DB_PORT || 5432,
   // Connection pool settings
   max: 20, // Maximum number of clients in the pool

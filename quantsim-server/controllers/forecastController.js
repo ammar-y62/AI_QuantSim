@@ -1,4 +1,4 @@
-const { db } = require('../services/firebaseService');
+const { query } = require('../config/database');
 const polygonService = require('../services/polygonService');
 
 // Predict stock return (main forecasting endpoint)
