@@ -24,14 +24,14 @@ services:
       dockerfile: Dockerfile
     environment:
       NODE_ENV: development
-      PORT: 5000
+      PORT: 3001
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: quantsim
       DB_USER: postgres
       DB_PASSWORD: postgres
     ports:
-      - "5000:5000"
+      - "3001:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,11 +41,14 @@ services:
   frontend:
     build:
       context: ./ai-quantsim-client
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     environment:
-      VITE_BACKEND_URL: http://localhost:5000/api
+      VITE_BACKEND_URL: http://localhost:3001/api
     ports:
-      - "3000:80"
+      - "3000:5173"
+    volumes:
+      - ./ai-quantsim-client/src:/app/src
+      - ./ai-quantsim-client/public:/app/public
     depends_on:
       - backend
     restart: unless-stopped
