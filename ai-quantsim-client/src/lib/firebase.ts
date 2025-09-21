@@ -15,54 +15,66 @@ const firebaseConfig = {
 }
 
 // Check if Firebase config is properly set up
-const isFirebaseConfigured = firebaseConfig.apiKey !== 'placeholder-api-key'
+const isFirebaseConfigured = firebaseConfig.apiKey &&
+  firebaseConfig.apiKey !== 'placeholder-api-key' &&
+  firebaseConfig.apiKey !== ''
 
-if (!isFirebaseConfigured) {
-  console.warn('Firebase is not properly configured. Please set up your Firebase environment variables.')
-}
+// Initialize Firebase only if properly configured
+let app = null
+let auth = null
+let analytics = null
+let googleProvider = null
+let facebookProvider = null
 
-// Initialize Firebase
-let app
-let auth
-let analytics
-let googleProvider
-let facebookProvider
+if (isFirebaseConfigured) {
+  try {
+    app = initializeApp(firebaseConfig)
 
-try {
-  app = initializeApp(firebaseConfig)
+    // Initialize Firebase Authentication and get a reference to the service
+    auth = getAuth(app)
 
-  // Initialize Firebase Authentication and get a reference to the service
-  auth = getAuth(app)
-
-  // Initialize Analytics (only in browser environment)
-  if (typeof window !== 'undefined') {
-    try {
-      analytics = getAnalytics(app)
-    } catch (error) {
-      console.warn('Analytics initialization failed:', error)
+    // Initialize Analytics (only in browser environment)
+    if (typeof window !== 'undefined') {
+      try {
+        analytics = getAnalytics(app)
+      } catch (error) {
+        console.warn('Analytics initialization failed:', error)
+      }
     }
+
+    // Auth providers
+    googleProvider = new GoogleAuthProvider()
+    facebookProvider = new FacebookAuthProvider()
+
+    // Configure Google provider
+    googleProvider.setCustomParameters({
+      prompt: 'select_account'
+    })
+
+    // Configure Facebook provider
+    facebookProvider.setCustomParameters({
+      display: 'popup'
+    })
+
+    console.log('Firebase initialized successfully')
+  } catch (error) {
+    console.error('Firebase initialization failed:', error)
+    // Reset to null on error
+    app = null
+    auth = null
+    analytics = null
+    googleProvider = null
+    facebookProvider = null
   }
-
-  // Auth providers
-  googleProvider = new GoogleAuthProvider()
-  facebookProvider = new FacebookAuthProvider()
-
-  // Configure Google provider
-  googleProvider.setCustomParameters({
-    prompt: 'select_account'
-  })
-
-  // Configure Facebook provider
-  facebookProvider.setCustomParameters({
-    display: 'popup'
-  })
-} catch (error) {
-  console.error('Firebase initialization failed:', error)
-  // Create fallback objects to prevent crashes
-  auth = null
-  analytics = null
-  googleProvider = null
-  facebookProvider = null
+} else {
+  console.warn('Firebase is not configured. Authentication features will be disabled.')
+  console.warn('To enable Firebase, set the following environment variables:')
+  console.warn('- VITE_FIREBASE_API_KEY')
+  console.warn('- VITE_FIREBASE_AUTH_DOMAIN')
+  console.warn('- VITE_FIREBASE_PROJECT_ID')
+  console.warn('- VITE_FIREBASE_STORAGE_BUCKET')
+  console.warn('- VITE_FIREBASE_MESSAGING_SENDER_ID')
+  console.warn('- VITE_FIREBASE_APP_ID')
 }
 
 export { auth, analytics, googleProvider, facebookProvider }

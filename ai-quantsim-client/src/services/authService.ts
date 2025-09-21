@@ -1,15 +1,19 @@
 // src/services/authService.ts
-import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { firebaseConfig } from "../firebaseConfig";
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { auth, googleProvider } from "../lib/firebase";
 import { useAuthStore } from "../stores/authStore";
-
-// Initialize Firebase app + auth
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 
 export const authService = {
   initAuthListener: () => {
+    if (!auth) {
+      console.warn('Firebase auth is not available. Auth features disabled.');
+      const set = useAuthStore.getState();
+      set.setIsAuthenticated(false);
+      set.setUser(null);
+      set.setIsLoading(false);
+      return;
+    }
+
     console.log('Initializing auth listener...');
     const set = useAuthStore.getState();
     onAuthStateChanged(auth, (user) => {
@@ -20,10 +24,13 @@ export const authService = {
     });
   },
   loginWithGoogle: async () => {
+    if (!auth || !googleProvider) {
+      throw new Error('Firebase authentication is not configured. Please set up Firebase environment variables.');
+    }
+
     try {
       console.log('Starting Google login...');
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, googleProvider);
       console.log('Google login successful:', result.user.email);
     } catch (error) {
       console.error('Google login failed:', error);
@@ -31,6 +38,14 @@ export const authService = {
     }
   },
   logout: async () => {
+    if (!auth) {
+      console.warn('Firebase auth is not available. Resetting local state only.');
+      const set = useAuthStore.getState();
+      set.setIsAuthenticated(false);
+      set.setIsLoading(false);
+      return;
+    }
+
     try {
       console.log('Logging out from Firebase...');
       await signOut(auth);
@@ -47,12 +62,16 @@ export const authService = {
     }
   },
   loginWithEmail: async (email: string, password: string) => {
-    const auth = getAuth();
+    if (!auth) {
+      throw new Error('Firebase authentication is not configured.');
+    }
     await signInWithEmailAndPassword(auth, email, password);
   },
 
   registerWithEmail: async (email: string, password: string) => {
-    const auth = getAuth();
+    if (!auth) {
+      throw new Error('Firebase authentication is not configured.');
+    }
     await createUserWithEmailAndPassword(auth, email, password);
   },
 };
