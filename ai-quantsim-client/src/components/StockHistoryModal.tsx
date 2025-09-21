@@ -57,8 +57,8 @@ function StockHistoryModal({ isOpen, onClose, ticker }: StockHistoryModalProps):
     return { change, percentChange }
   }
 
-  const latestData = historyData?.data[historyData.data.length - 1]
-  const previousData = historyData?.data[historyData.data.length - 2]
+  const latestData = historyData?.data && historyData.data.length > 0 ? historyData.data[historyData.data.length - 1] : null
+  const previousData = historyData?.data && historyData.data.length > 1 ? historyData.data[historyData.data.length - 2] : null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -216,18 +216,26 @@ function StockHistoryModal({ isOpen, onClose, ticker }: StockHistoryModalProps):
                       </tr>
                     </thead>
                     <tbody>
-                      {historyData.data.slice(-10).reverse().map((item, index) => (
-                        <tr key={index} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="py-2 text-slate-600">{formatDate(item.date)}</td>
-                          <td className="py-2 text-right">{formatPrice(item.open)}</td>
-                          <td className="py-2 text-right text-green-600">{formatPrice(item.high)}</td>
-                          <td className="py-2 text-right text-red-600">{formatPrice(item.low)}</td>
-                          <td className="py-2 text-right font-medium">{formatPrice(item.close)}</td>
-                          <td className="py-2 text-right text-slate-600">
-                            {new Intl.NumberFormat().format(item.volume)}
+                      {historyData.data && historyData.data.length > 0 ? (
+                        historyData.data.slice(-10).reverse().map((item, index) => (
+                          <tr key={index} className="border-b border-slate-100 hover:bg-slate-50">
+                            <td className="py-2 text-slate-600">{formatDate(item.date)}</td>
+                            <td className="py-2 text-right">{formatPrice(item.open)}</td>
+                            <td className="py-2 text-right text-green-600">{formatPrice(item.high)}</td>
+                            <td className="py-2 text-right text-red-600">{formatPrice(item.low)}</td>
+                            <td className="py-2 text-right font-medium">{formatPrice(item.close)}</td>
+                            <td className="py-2 text-right text-slate-600">
+                              {new Intl.NumberFormat().format(item.volume)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-500">
+                            No historical data available
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>

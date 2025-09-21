@@ -1,85 +1,72 @@
 import { api } from './api'
 
-// Types for portfolio data
-export interface PortfolioItem {
-  ticker: string
-  weight: number
-}
-
-export interface PortfolioAnalysis {
+// Types for portfolio data matching backend API
+export interface PortfolioHolding {
   id: string
-  portfolio: PortfolioItem[]
-  metrics: {
-    sharpeRatio: number
-    volatility: number
-    maxDrawdown: number
-    totalReturn: number
-    cagr: number
-    beta: number
-  }
-  performance: {
-    dates: string[]
-    values: number[]
-  }
-  createdAt: string
+  ticker: string
+  shares: number
+  avgPrice: number
+  currentPrice?: number
+  currentValue?: number
+  pnl?: number
+  pnlPercentage?: number
+  entryDate: string
 }
 
-export interface AnalysisRequest {
-  portfolio: PortfolioItem[]
-  startDate?: string
-  endDate?: string
-  riskFreeRate?: number
+export interface PortfolioResponse {
+  portfolio: PortfolioHolding[]
+  totalValue: number
+  totalPnL: number
+  totalPnLPercentage: number
 }
 
-// Portfolio API service functions
+export interface SavePortfolioRequest {
+  ticker: string
+  shares: number
+  avgPrice: number
+  portfolioName?: string
+}
+
+export interface UpdateStockRequest {
+  shares?: number
+  avgPrice?: number
+}
+
+// Portfolio API service functions matching backend endpoints
 export const portfolioService = {
-  // Analyze portfolio performance
-  async analyzePortfolio(data: AnalysisRequest): Promise<PortfolioAnalysis> {
-    const response = await api.post('/portfolio/analyze', data)
+  // Save/update stock in portfolio
+  async savePortfolio(data: SavePortfolioRequest): Promise<any> {
+    const response = await api.post('/portfolio/save', data)
     return response.data
   },
 
-  // Get portfolio analysis by ID
-  async getAnalysis(id: string): Promise<PortfolioAnalysis> {
-    const response = await api.get(`/portfolio/analysis/${id}`)
+  // Get user portfolio with live prices
+  async getUserPortfolio(): Promise<PortfolioResponse> {
+    const response = await api.get('/portfolio/userPortfolio')
     return response.data
   },
 
-  // Get user's saved portfolios
-  async getSavedPortfolios(): Promise<PortfolioAnalysis[]> {
-    const response = await api.get('/portfolio/saved')
+  // Get basic portfolio (without live prices)
+  async getPortfolio(): Promise<PortfolioHolding[]> {
+    const response = await api.get('/portfolio/portfolio')
     return response.data
   },
 
-  // Save portfolio analysis
-  async saveAnalysis(analysis: PortfolioAnalysis): Promise<PortfolioAnalysis> {
-    const response = await api.post('/portfolio/save', analysis)
+  // Add new stock to portfolio
+  async addStock(data: SavePortfolioRequest): Promise<any> {
+    const response = await api.post('/portfolio/add', data)
     return response.data
   },
 
-  // Delete saved portfolio
-  async deleteAnalysis(id: string): Promise<void> {
-    await api.delete(`/portfolio/analysis/${id}`)
-  },
-
-  // Get stock data for a ticker
-  async getStockData(ticker: string, startDate?: string, endDate?: string) {
-    const params = new URLSearchParams()
-    if (startDate) params.append('startDate', startDate)
-    if (endDate) params.append('endDate', endDate)
-
-    const response = await api.get(`/stocks/${ticker}?${params.toString()}`)
+  // Update existing stock in portfolio
+  async updateStock(ticker: string, data: UpdateStockRequest): Promise<any> {
+    const response = await api.put(`/portfolio/${ticker}`, data)
     return response.data
   },
 
-  // Get multiple stocks data
-  async getMultipleStocksData(tickers: string[], startDate?: string, endDate?: string) {
-    const params = new URLSearchParams()
-    params.append('tickers', tickers.join(','))
-    if (startDate) params.append('startDate', startDate)
-    if (endDate) params.append('endDate', endDate)
-
-    const response = await api.get(`/stocks/batch?${params.toString()}`)
+  // Remove stock from portfolio
+  async removeStock(ticker: string): Promise<any> {
+    const response = await api.delete(`/portfolio/${ticker}`)
     return response.data
   }
 }

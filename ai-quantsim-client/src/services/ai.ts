@@ -34,7 +34,7 @@ export interface ForecastResponse {
   accuracy?: number
 }
 
-// AI API service functions
+// AI API service functions matching backend endpoints
 export const aiService = {
   // Ask AI assistant a question
   async askQuestion(data: AIQuestion): Promise<AIResponse> {
@@ -42,33 +42,27 @@ export const aiService = {
     return response.data
   },
 
-  // Get portfolio insights
-  async getPortfolioInsights(portfolioId: string): Promise<AIResponse> {
-    const response = await api.get(`/ai/portfolio/${portfolioId}/insights`)
+  // Get stock forecast (using forecast endpoint)
+  async getForecast(ticker: string): Promise<ForecastResponse> {
+    const response = await api.post('/forecast', { ticker })
     return response.data
   },
 
-  // Get stock forecast
-  async getForecast(data: ForecastRequest): Promise<ForecastResponse> {
-    const response = await api.post('/ai/forecast', data)
+  // Search news (using search endpoint)
+  async searchNews(query: string, category?: string, source?: string, sentiment?: string, limit: number = 20) {
+    const response = await api.post('/search/search', {
+      query,
+      category,
+      source,
+      sentiment,
+      limit
+    })
     return response.data
   },
 
-  // Search financial documents/news
-  async searchDocuments(query: string, limit: number = 10) {
-    const response = await api.get(`/ai/search?q=${encodeURIComponent(query)}&limit=${limit}`)
-    return response.data
-  },
-
-  // Get market sentiment analysis
-  async getSentiment(ticker: string) {
-    const response = await api.get(`/ai/sentiment/${ticker}`)
-    return response.data
-  },
-
-  // Get investment recommendations
-  async getRecommendations(riskProfile: 'conservative' | 'moderate' | 'aggressive') {
-    const response = await api.get(`/ai/recommendations?risk=${riskProfile}`)
+  // Get stock-specific news
+  async getStockNews(ticker: string) {
+    const response = await api.get(`/search/stock/${ticker}`)
     return response.data
   }
 }

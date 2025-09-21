@@ -28,12 +28,16 @@ function DialogClose({
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
-function DialogOverlay({
+const DialogOverlay = React.forwardRef<HTMLDivElement, {
+  className?: string;
+  [key: string]: any;
+}>(({
   className,
   ...props
-}) {
+}, ref) => {
   return (
     <DialogPrimitive.Overlay
+      ref={ref}
       data-slot="dialog-overlay"
       className={cn(
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
@@ -41,12 +45,17 @@ function DialogOverlay({
       )}
       {...props} />
   );
-}
+});
+DialogOverlay.displayName = "DialogOverlay";
 
 function DialogContent({
   className,
   children,
   ...props
+}: {
+  className?: string;
+  children: React.ReactNode;
+  [key: string]: any;
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
@@ -72,6 +81,9 @@ function DialogContent({
 function DialogHeader({
   className,
   ...props
+}: {
+  className?: string;
+  [key: string]: any;
 }) {
   return (
     <div
@@ -84,6 +96,9 @@ function DialogHeader({
 function DialogFooter({
   className,
   ...props
+}: {
+  className?: string;
+  [key: string]: any;
 }) {
   return (
     <div
@@ -96,6 +111,9 @@ function DialogFooter({
 function DialogTitle({
   className,
   ...props
+}: {
+  className?: string;
+  [key: string]: any;
 }) {
   return (
     <DialogPrimitive.Title
@@ -108,6 +126,9 @@ function DialogTitle({
 function DialogDescription({
   className,
   ...props
+}: {
+  className?: string;
+  [key: string]: any;
 }) {
   return (
     <DialogPrimitive.Description

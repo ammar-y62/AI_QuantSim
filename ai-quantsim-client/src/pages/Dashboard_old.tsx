@@ -9,7 +9,7 @@ import StockForecastModal from '@/components/StockForecastModal'
 import MyAccount from '@/pages/MyAccount'
 import StockList from '@/pages/StockList'
 import { portfolioService, type SavePortfolioRequest, type PortfolioResponse } from '@/services/portfolio'
-import { dashboardService } from '@/services/dashboard'
+import { dashboardService, type DashboardResponse } from '@/services/dashboard'
 import { useAuthStore } from '@/stores/authStore'
 
 // Type definitions
@@ -44,7 +44,7 @@ function Dashboard() {
 
   const addRow = (): void => {
     const newId = Math.max(...portfolioRows.map(row => row.id)) + 1
-    setPortfolioRows([...portfolioRows, { id: newId, ticker: '', shares: '', avgPrice: '' }])
+    setPortfolioRows([...portfolioRows, { id: newId, ticker: '', weight: '' }])
   }
 
   const removeRow = (id: number): void => {
@@ -53,8 +53,7 @@ function Dashboard() {
       // Clear errors for removed row
       const newErrors = { ...errors }
       delete newErrors[`ticker-${id}`]
-      delete newErrors[`shares-${id}`]
-      delete newErrors[`avgPrice-${id}`]
+      delete newErrors[`weight-${id}`]
       setErrors(newErrors)
     }
   }
@@ -174,6 +173,11 @@ function Dashboard() {
     setSelectedTicker(ticker)
     setForecastModalOpen(true)
   }
+
+  const totalWeight: number = portfolioRows.reduce((sum, row) => {
+    const weight = parseFloat(row.weight) || 0
+    return sum + weight
+  }, 0)
 
   const formatPercentage = (value: number): string => {
     return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
@@ -327,38 +331,24 @@ function Dashboard() {
       ) : portfolioData && portfolioData.portfolio.length > 0 ? (
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-xl text-slate-900">Your Portfolio</CardTitle>
+            <CardTitle className="text-xl text-slate-900">Portfolio Analysis Results</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Portfolio Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* Performance Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-blue-100 rounded-full">
                       <TrendingUp className="h-5 w-5 text-blue-600" />
                     </div>
-                    <h3 className="text-gray-600 text-sm font-medium">Total Value</h3>
-                  </div>
-                  <p className="text-3xl font-bold text-slate-900">
-                    ${portfolioData.totalValue.toFixed(2)}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-green-100 rounded-full">
-                      <BarChart3 className="h-5 w-5 text-green-600" />
-                    </div>
-                    <h3 className="text-gray-600 text-sm font-medium">Total P&L</h3>
+                    <h3 className="text-gray-600 text-sm font-medium">Total Return</h3>
                   </div>
                   <p className={`text-3xl font-bold flex items-center ${
-                    portfolioData.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'
+                    analysisResult.metrics.totalReturn >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    ${portfolioData.totalPnL.toFixed(2)}
-                    {portfolioData.totalPnL >= 0 ? (
+                    {formatPercentage(analysisResult.metrics.totalReturn)}
+                    {analysisResult.metrics.totalReturn >= 0 ? (
                       <ArrowUpRight className="h-6 w-6 ml-1" />
                     ) : (
                       <ArrowDownRight className="h-6 w-6 ml-1" />
@@ -370,24 +360,80 @@ function Dashboard() {
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-green-100 rounded-full">
+                      <BarChart3 className="h-5 w-5 text-green-600" />
+                    </div>
+                    <h3 className="text-gray-600 text-sm font-medium">Sharpe Ratio</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-slate-900">
+                    {analysisResult.metrics.sharpeRatio.toFixed(2)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-orange-100 rounded-full">
                       <PieChart className="h-5 w-5 text-orange-600" />
                     </div>
-                    <h3 className="text-gray-600 text-sm font-medium">P&L %</h3>
+                    <h3 className="text-gray-600 text-sm font-medium">Volatility</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-slate-900">
+                    {formatPercentage(analysisResult.metrics.volatility)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-red-100 rounded-full">
+                      <TrendingUp className="h-5 w-5 text-red-600" />
+                    </div>
+                    <h3 className="text-gray-600 text-sm font-medium">Max Drawdown</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-red-600">
+                    {formatPercentage(analysisResult.metrics.maxDrawdown)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-purple-100 rounded-full">
+                      <Target className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <h3 className="text-gray-600 text-sm font-medium">CAGR</h3>
                   </div>
                   <p className={`text-3xl font-bold ${
-                    portfolioData.totalPnLPercentage >= 0 ? 'text-green-600' : 'text-red-600'
+                    analysisResult.metrics.cagr >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {formatPercentage(portfolioData.totalPnLPercentage)}
+                    {formatPercentage(analysisResult.metrics.cagr)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-gray-100 rounded-full">
+                      <BarChart3 className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <h3 className="text-gray-600 text-sm font-medium">Beta</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-slate-900">
+                    {analysisResult.metrics.beta.toFixed(2)}
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Portfolio Holdings */}
+            {/* Portfolio Composition */}
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle className="text-lg">Portfolio Holdings</CardTitle>
+                <CardTitle className="text-lg">Portfolio Composition</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -395,58 +441,17 @@ function Dashboard() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Symbol</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shares</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Price</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Price</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">P&L</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Weight</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {portfolioData.portfolio.map((holding, index) => (
+                      {analysisResult.portfolio.map((item, index) => (
                         <tr key={index}>
                           <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-900">
-                            {holding.ticker}
+                            {item.ticker}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-slate-700">
-                            {holding.shares}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-700">
-                            ${holding.avgPrice.toFixed(2)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-700">
-                            ${holding.currentPrice?.toFixed(2) || 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-700">
-                            ${holding.currentValue?.toFixed(2) || 'N/A'}
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap font-medium ${
-                            (holding.pnl || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            ${(holding.pnl || 0).toFixed(2)} ({(holding.pnlPercentage || 0).toFixed(2)}%)
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleHistoryClick(holding.ticker)}
-                                className="text-blue-600 hover:text-blue-700"
-                              >
-                                <History className="h-4 w-4 mr-1" />
-                                History
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleForecastClick(holding.ticker)}
-                                className="text-green-600 hover:text-green-700"
-                              >
-                                <Target className="h-4 w-4 mr-1" />
-                                Forecast
-                              </Button>
-                            </div>
+                            {item.weight}%
                           </td>
                         </tr>
                       ))}
@@ -454,16 +459,20 @@ function Dashboard() {
                   </table>
                 </div>
               </CardContent>
-            </Card>
+            </div>
+
+            {/* Save Portfolio Button */}
+            <div className="flex justify-center">
+              <Button
+                onClick={() => portfolioService.saveAnalysis(analysisResult)}
+                className="px-6 py-3"
+              >
+                Save Portfolio Analysis
+              </Button>
+            </div>
           </CardContent>
         </Card>
-      ) : portfolioData && portfolioData.portfolio.length === 0 ? (
-        <Card className="mb-8">
-          <CardContent className="p-8 text-center">
-            <div className="text-slate-600">No stocks in your portfolio yet. Add some stocks above!</div>
-          </CardContent>
-        </Card>
-      ) : null}
+      )}
     </main>
   )
 
@@ -478,8 +487,8 @@ function Dashboard() {
                 <TrendingUp className="h-6 w-6 text-indigo-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">AI QuantSim</h1>
-                <p className="text-slate-600">Advanced Portfolio Analytics & AI Insights</p>
+                <h1 className="text-2xl font-bold text-slate-900">Financial Portfolio Builder</h1>
+                <p className="text-slate-600">Create and analyze your custom investment portfolio</p>
               </div>
             </div>
 

@@ -19,7 +19,6 @@
 cd quantsim-server
 npm install
 cp env.example .env
-# Edit .env with your database and Firebase credentials
 npm run db:setup
 npm run dev
 ```

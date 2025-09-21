@@ -29,8 +29,23 @@ exports.getStockHistory = async (req, res) => {
   try {
     const { ticker } = req.params;
     const period = req.query.period || '1m';
-    const data = await polygonService.getStockHistory(ticker, period);
-    res.json(data);
+    const polygonData = await polygonService.getStockHistory(ticker, period);
+    
+    // Transform Polygon API response to match frontend interface
+    const transformedData = {
+      ticker: polygonData.ticker,
+      period: period,
+      data: polygonData.results?.map(result => ({
+        date: new Date(result.t).toISOString().split('T')[0], // Convert timestamp to date
+        open: result.o,
+        high: result.h,
+        low: result.l,
+        close: result.c,
+        volume: result.v
+      })) || []
+    };
+    
+    res.json(transformedData);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

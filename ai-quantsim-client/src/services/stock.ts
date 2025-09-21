@@ -70,10 +70,18 @@ export const getStockForecast = async (ticker: string): Promise<ForecastResponse
 }
 
 // Get all stocks for stock list page
-export const getAllStocks = async (): Promise<StockSearchResult[]> => {
+export const getAllStocks = async (page: number = 1, limit: number = 50): Promise<StockSearchResult[]> => {
   try {
-    const response = await api.get('/stocks')
-    return response.data
+    const response = await api.get(`/stocks/list?page=${page}&limit=${limit}`)
+    // The backend returns data in a 'results' property, so we need to extract it
+    const data = response.data.results || response.data || []
+    
+    // Transform the data to match our StockSearchResult interface
+    return data.map((stock: any) => ({
+      ticker: stock.ticker || stock.symbol,
+      name: stock.name || stock.company_name || 'Unknown Company',
+      exchange: stock.primary_exchange || stock.exchange
+    }))
   } catch (error) {
     console.error('Error fetching all stocks:', error)
     return []
