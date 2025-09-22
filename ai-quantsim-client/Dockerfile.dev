@@ -10,8 +10,14 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy essential files that are not mounted
+COPY index.html ./
+COPY vite.config.ts ./
+COPY tsconfig*.json ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
+
+# Note: Source code (src/) is mounted via volume, not copied
 
 # Expose port
 EXPOSE 3000

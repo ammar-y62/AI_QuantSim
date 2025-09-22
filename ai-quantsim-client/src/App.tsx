@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import { authService } from './services/authService'
 import ProtectedRoute from './components/ProtectedRoute'
 import Register from './pages/Register'
-
+import GlobalAIAssistant from './components/GlobalAIAssistant'
+import { useAuthStore } from './stores/authStore'
 
 import './App.css'
 
 function App() {
   const [isInitialized, setIsInitialized] = useState(false)
+  const location = useLocation()
 
   // Debug logging
   console.log('App render - isInitialized:', isInitialized)
@@ -43,22 +45,27 @@ function App() {
   console.log('Rendering routes...')
 
   return (
-    <Routes>
-    <Route path="/login" element={<Login />} />
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
 
-    <Route
-      path="/dashboard"
-      element={
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      }
-    />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
 
-    <Route path="/" element={<Navigate to="/login" replace />} />
-    <Route path="*" element={<Navigate to="/login" replace />} />
-    <Route path="/register" element={<Register />} />
-  </Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/register" element={<Register />} />
+      </Routes>
+
+      {/* Global AI Assistant - show when on dashboard page */}
+      {location.pathname === '/dashboard' && <GlobalAIAssistant />}
+    </>
   )
 }
 
